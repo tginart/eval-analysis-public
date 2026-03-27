@@ -95,6 +95,9 @@ stages:
     foreach:
       double_line_all_data_retrodict_excluding_swaa: ${figs.plot_logistic_regression.double_line_all_data_retrodict_excluding_swaa}
       p80: ${figs.plot_logistic_regression.p80}
+      p90: ${figs.plot_logistic_regression.p90}
+      p95: ${figs.plot_logistic_regression.p95}
+      all_thresholds: ${figs.plot_logistic_regression.all_thresholds}
     do:
       cmd: python -m horizon.plot.logistic --input-file data/wrangled/logistic_fits/${item.logistic_file}.csv
         --runs-file ${item.runs_file} --release-dates ../../data/external/release_dates.yaml

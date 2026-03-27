@@ -204,33 +204,36 @@ def plot_horizon_graph(
     legend_labels = []
     legend_handles = []
 
+    hide_scatter = script_params.get("hide_scatter", False)
+
     for i, agent in enumerate(agent_summaries["agent"]):
         if y_clipped.iloc[i] <= lower_y_lim or y_clipped.iloc[i] >= upper_y_lim:
             continue
-        if not script_params.get("hide_error_bars", False):
-            ax.errorbar(
+        if not hide_scatter:
+            if not script_params.get("hide_error_bars", False):
+                ax.errorbar(
+                    agent_summaries["release_date"].iloc[i],
+                    y_clipped.iloc[i],
+                    yerr=[[yerr[0, i]], [yerr[1, i]]],
+                    **plot_style["error_bar"],
+                )
+            ax.grid(**plot_style["grid"])
+            style = agent_style.get(agent, agent_style.get("default", {}))
+            if marker_override is not None:
+                marker = marker_override
+            else:
+                marker = style["marker"]
+            scatter_handle = ax.scatter(
                 agent_summaries["release_date"].iloc[i],
                 y_clipped.iloc[i],
-                yerr=[[yerr[0, i]], [yerr[1, i]]],
-                **plot_style["error_bar"],
+                color=style["lab_color"],
+                marker=marker,
+                label=agent,
+                **plot_style["scatter"],
             )
-        ax.grid(**plot_style["grid"])
-        style = agent_style.get(agent, agent_style.get("default", {}))
-        if marker_override is not None:
-            marker = marker_override
-        else:
-            marker = style["marker"]
-        scatter_handle = ax.scatter(
-            agent_summaries["release_date"].iloc[i],
-            y_clipped.iloc[i],
-            color=style["lab_color"],
-            marker=marker,
-            label=agent,
-            **plot_style["scatter"],
-        )
 
-        legend_labels.append(agent)
-        legend_handles.append(scatter_handle)
+            legend_labels.append(agent)
+            legend_handles.append(scatter_handle)
 
     # Add arrows for out-of-range points
     mask_out_range = y_clipped != y
@@ -318,7 +321,9 @@ def plot_horizon_graph(
         ax.set_ylabel(
             script_params.get(
                 "ylabel",
-                f"Task time (for humans) that model completes with \n{success_percent}% success rate",
+                f"Task time (for humans) that model completes with \n{success_percent}% success rate"
+                if not script_params.get("hide_scatter", False)
+                else "Task time (for humans) at given success rate",
             ),
             fontsize=script_params.get(
                 "ax_label_fontsize", plot_params["ax_label_fontsize"]
@@ -347,41 +352,40 @@ def plot_horizon_graph(
             fontsize=plot_params["suptitle_fontsize"],
         )
 
-    # The graph is too busy if we have both trendlines and legend
-    # if not trendlines:
-    # Only consider agents that are present in both legend_order and legend_labels
-    available_agents = [
-        agent for agent in plot_params["legend_order"] if agent in legend_labels
-    ]
-    # Sort handles and labels based on the filtered order;
-    # agents not in legend_order are appended at the end
-    max_idx = len(available_agents)
-    sorted_pairs = sorted(
-        zip(legend_handles, legend_labels),
-        key=lambda pair: available_agents.index(pair[1])
-        if pair[1] in available_agents
-        else max_idx,
-    )
-    legend_handles, legend_labels = zip(*sorted_pairs)
+    if not script_params.get("hide_legend", False) and legend_handles:
+        # Only consider agents that are present in both legend_order and legend_labels
+        available_agents = [
+            agent for agent in plot_params["legend_order"] if agent in legend_labels
+        ]
+        # Sort handles and labels based on the filtered order;
+        # agents not in legend_order are appended at the end
+        max_idx = len(available_agents)
+        sorted_pairs = sorted(
+            zip(legend_handles, legend_labels),
+            key=lambda pair: available_agents.index(pair[1])
+            if pair[1] in available_agents
+            else max_idx,
+        )
+        legend_handles, legend_labels = zip(*sorted_pairs)
 
-    # Optionally place the legend on the right side of the figure
-    # This is useful for long lists of models which overlap with the main plot too much
-    legend_on_right = script_params.get("legend_on_right", False)
+        # Optionally place the legend on the right side of the figure
+        # This is useful for long lists of models which overlap with the main plot too much
+        legend_on_right = script_params.get("legend_on_right", False)
 
-    if legend_on_right:
-        legend_loc = "center left"
-        legend_bbox = (1.02, 0.5)
-    else:
-        legend_loc = "best"
-        legend_bbox = None
+        if legend_on_right:
+            legend_loc = "center left"
+            legend_bbox = (1.02, 0.5)
+        else:
+            legend_loc = "best"
+            legend_bbox = None
 
-    ax.legend(
-        legend_handles,
-        legend_labels,
-        loc=legend_loc,
-        bbox_to_anchor=legend_bbox,
-        fontsize=script_params.get("legend_fontsize", 12) if script_params else 12,
-    )
+        ax.legend(
+            legend_handles,
+            legend_labels,
+            loc=legend_loc,
+            bbox_to_anchor=legend_bbox,
+            fontsize=script_params.get("legend_fontsize", 12) if script_params else 12,
+        )
 
     # Lay the annotations we collected earlier, ensuring they don't overlap
     padding = 10

@@ -42,8 +42,8 @@ stages:
     outs:
     - path: data/wrangled/bootstrap/headline.csv
       hash: md5
-      md5: 70b8248c140b932febea95f05e941216
-      size: 1259825
+      md5: 41b9d8e1cd7e91a78bfefd86d5754365
+      size: 1259873
   wrangle_logistic_regression@headline:
     cmd: python -m horizon.wrangle.logistic --fig-name headline --runs-file 
       data/raw/runs.jsonl --output-logistic-fits-file 
@@ -78,8 +78,8 @@ stages:
       size: 24022538
     - path: data/wrangled/bootstrap/headline.csv
       hash: md5
-      md5: 70b8248c140b932febea95f05e941216
-      size: 1259825
+      md5: 41b9d8e1cd7e91a78bfefd86d5754365
+      size: 1259873
     params:
       fig_params/figs.yaml:
         figs.wrangle_logistic.headline:
@@ -6092,8 +6092,8 @@ stages:
       size: 24022538
     - path: data/wrangled/bootstrap/headline.csv
       hash: md5
-      md5: 70b8248c140b932febea95f05e941216
-      size: 1259825
+      md5: 41b9d8e1cd7e91a78bfefd86d5754365
+      size: 1259873
     - path: data/wrangled/logistic_fits/headline.csv
       hash: md5
       md5: 68b91bde90c961395b04534a33a8a4cd

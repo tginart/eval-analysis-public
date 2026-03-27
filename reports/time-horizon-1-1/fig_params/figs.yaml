@@ -78,7 +78,7 @@ figs:
       categories: ftr
       regularization: 0.00001
       exclude: []
-      success_percents: [50, 80]
+      success_percents: [50, 80, 90, 95, 98, 99]
       confidence_level: 0.95
 
     ga_rebench:
@@ -408,6 +408,165 @@ figs:
           skip_annotation: true
           styling:
             linestyle: dashed
+      exclude_agents: *exclude_agents
+      exclude_agents_from_all_fits: *exclude_agents_from_all_fits
+    p90:
+      <<: *plot_headline
+      logistic_file: headline
+      subtitle: 90% success rate
+      success_percent: 90
+      trendlines:
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: blue
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          styling: null
+          data_file: null
+          skip_annotation: false
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: grey
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          success_percent: 80
+          data_file: null
+          skip_annotation: true
+          styling:
+            linestyle: dashdot
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: grey
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          success_percent: 50
+          data_file: null
+          skip_annotation: true
+          styling:
+            linestyle: dashed
+      exclude_agents: *exclude_agents
+      exclude_agents_from_all_fits: *exclude_agents_from_all_fits
+    p95:
+      <<: *plot_headline
+      logistic_file: headline
+      subtitle: 95% success rate
+      success_percent: 95
+      trendlines:
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: blue
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          styling: null
+          data_file: null
+          skip_annotation: false
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: grey
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          success_percent: 80
+          data_file: null
+          skip_annotation: true
+          styling:
+            linestyle: dashdot
+        - fit_type: exponential
+          caption: null
+          after_date: "2020-01-01"
+          color: grey
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: true
+          success_percent: 50
+          data_file: null
+          skip_annotation: true
+          styling:
+            linestyle: dashed
+      exclude_agents: *exclude_agents
+      exclude_agents_from_all_fits: *exclude_agents_from_all_fits
+    all_thresholds:
+      <<: *plot_headline
+      logistic_file: headline
+      subtitle: "50%, 80%, 90%, 95%, 98%, and 99% success rates"
+      success_percent: 50
+      hide_scatter: true
+      hide_legend: true
+      trendlines:
+        - fit_type: exponential
+          caption: "50% (best: ~12 hrs)"
+          after_date: "2020-01-01"
+          color: blue
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          styling: null
+          data_file: null
+          skip_annotation: false
+        - fit_type: exponential
+          caption: "80% (best: ~70 min)"
+          after_date: "2020-01-01"
+          color: orange
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          success_percent: 80
+          data_file: null
+          skip_annotation: false
+          styling: null
+        - fit_type: exponential
+          caption: "90% (best: ~25 min)"
+          after_date: "2020-01-01"
+          color: green
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          success_percent: 90
+          data_file: null
+          skip_annotation: false
+          styling: null
+        - fit_type: exponential
+          caption: "95% (best: ~11 min)"
+          after_date: "2020-01-01"
+          color: red
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          success_percent: 95
+          data_file: null
+          skip_annotation: false
+          styling: null
+        - fit_type: exponential
+          caption: "98% (best: ~4 min)"
+          after_date: "2020-01-01"
+          color: purple
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          success_percent: 98
+          data_file: null
+          skip_annotation: false
+          styling: null
+        - fit_type: exponential
+          caption: "99% (best: ~2 min)"
+          after_date: "2020-01-01"
+          color: brown
+          line_start_date: "2019-09-01"
+          line_end_date: "2027-01-01"
+          display_r_squared: false
+          success_percent: 99
+          data_file: null
+          skip_annotation: false
+          styling: null
       exclude_agents: *exclude_agents
       exclude_agents_from_all_fits: *exclude_agents_from_all_fits
     double_line_all_data_retrodict_excluding_swaa:
