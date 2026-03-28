@@ -19,6 +19,9 @@ from matplotlib.cm import ScalarMappable
 from scipy.special import logit
 
 
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+REPORT_DIR = SCRIPT_DIR.parent
+
 EXCLUDE_AGENTS = [
     "Claude 3 Opus (Inspect)",
     "GPT-4 Turbo (Inspect)",
@@ -42,16 +45,23 @@ def load_and_reshape(
     if exclude_agents:
         df = df[~df["agent"].isin(exclude_agents)]
 
+    missing_cols = []
     rows = []
     for p in percents:
         col = f"p{p}"
         if col not in df.columns:
+            missing_cols.append(col)
             continue
         sub = df[["agent", "release_date", "date_num", col]].copy()
         sub = sub.rename(columns={col: "horizon_min"})
         sub["percent"] = p
         sub = sub[sub["horizon_min"] > 0]
         rows.append(sub)
+
+    if missing_cols:
+        raise ValueError(
+            f"Missing requested reliability columns in {csv_path}: {', '.join(missing_cols)}"
+        )
 
     long = pd.concat(rows, ignore_index=True)
     long["log_horizon"] = np.log(long["horizon_min"])
@@ -313,7 +323,7 @@ def plot_jaggedness_hero(
     beta: np.ndarray,
     output_path: str,
 ):
-    """Non-log plot of 50% vs 99% exponential trendlines showing divergence."""
+    """Non-log plot of 80% vs 98% exponential trendlines showing divergence."""
     fig, ax = plt.subplots(figsize=(12, 7))
 
     last_data_date = long["release_date"].max()
@@ -341,10 +351,10 @@ def plot_jaggedness_hero(
     all_dates = pd.date_range("2023-06-01", "2031-03-01", freq="MS")
     all_dns = mdates.date2num(all_dates)
     lp80 = logit(80 / 100.0)
-    lp99 = logit(98 / 100.0)
+    lp98 = logit(98 / 100.0)
     h80 = np.exp(beta[0] + beta[1] * all_dns + beta[2] * lp80 + beta[3] * all_dns * lp80) / 1440.0
-    h99 = np.exp(beta[0] + beta[1] * all_dns + beta[2] * lp99 + beta[3] * all_dns * lp99) / 1440.0
-    ax.fill_between(all_dates, h99, h80, alpha=0.08, color="red", label="Jaggedness gap")
+    h98 = np.exp(beta[0] + beta[1] * all_dns + beta[2] * lp98 + beta[3] * all_dns * lp98) / 1440.0
+    ax.fill_between(all_dates, h98, h80, alpha=0.08, color="red", label="Jaggedness gap")
 
     # Vertical line at present
     ax.axvline(last_data_date, color="black", linestyle=":", alpha=0.4, linewidth=1)
@@ -355,9 +365,9 @@ def plot_jaggedness_hero(
     for date_str in ["2026-02-01", "2028-01-01", "2031-01-01"]:
         d = mdates.date2num(pd.Timestamp(date_str))
         v80 = np.exp(beta[0] + beta[1] * d + beta[2] * lp80 + beta[3] * d * lp80) / 1440.0
-        v99 = np.exp(beta[0] + beta[1] * d + beta[2] * lp99 + beta[3] * d * lp99) / 1440.0
-        ratio = v80 / v99
-        mid = np.sqrt(v80 * v99)  # geometric mean for placement
+        v98 = np.exp(beta[0] + beta[1] * d + beta[2] * lp98 + beta[3] * d * lp98) / 1440.0
+        ratio = v80 / v98
+        mid = np.sqrt(v80 * v98)  # geometric mean for placement
         ax.annotate(f"{ratio:.0f}x gap",
                     (pd.Timestamp(date_str), mid),
                     fontsize=11, fontweight="bold", color="red", alpha=0.7,
@@ -882,11 +892,28 @@ def print_calculator(beta: np.ndarray, ref_date: str = "2026-02-05"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-file", default="data/wrangled/logistic_fits/headline.csv")
-    parser.add_argument("--output-file", default="plots/logistic/2d_regression.png")
-    parser.add_argument("--calculator-output", default="plots/logistic/horizon_calculator.png")
-    parser.add_argument("--jaggedness-output", default="plots/logistic/jaggedness_gap.png")
-    parser.add_argument("--hero-output", default="plots/logistic/hero_all_thresholds.png")
+    # Resolve defaults relative to this report so the script is reproducible even when
+    # invoked from the repo root instead of from reports/time-horizon-1-1/.
+    parser.add_argument(
+        "--input-file",
+        default=str(REPORT_DIR / "data/wrangled/logistic_fits/headline.csv"),
+    )
+    parser.add_argument(
+        "--output-file",
+        default=str(REPORT_DIR / "plots/logistic/2d_regression.png"),
+    )
+    parser.add_argument(
+        "--calculator-output",
+        default=str(REPORT_DIR / "plots/logistic/horizon_calculator.png"),
+    )
+    parser.add_argument(
+        "--jaggedness-output",
+        default=str(REPORT_DIR / "plots/logistic/jaggedness_gap.png"),
+    )
+    parser.add_argument(
+        "--hero-output",
+        default=str(REPORT_DIR / "plots/logistic/hero_all_thresholds.png"),
+    )
     parser.add_argument("--percents", nargs="+", type=int, default=[50, 80, 90, 95, 98, 99])
     parser.add_argument("--ref-date", default="2026-02-05")
     args = parser.parse_args()
@@ -907,11 +934,11 @@ def main():
     plot_calculator(beta, result["r_squared"], args.calculator_output, args.ref_date)
     plot_jaggedness(beta, result["r_squared"], args.jaggedness_output, long, args.percents)
     plot_hero(long, beta, result["r_squared"], args.hero_output, args.percents)
-    plot_jaggedness_hero(long, beta, "plots/logistic/jaggedness_hero.png")
-    plot_banner_heatmap(beta, result["r_squared"], "plots/logistic/banner_heatmap.png")
-    plot_banner_jaggedness(long, beta, "plots/logistic/banner_jaggedness.png")
-    plot_doubling_time(beta, "plots/logistic/doubling_time_vs_reliability.png", args.percents)
-    plot_r_squared(long, "plots/logistic/r_squared_vs_reliability.png", args.percents)
+    plot_jaggedness_hero(long, beta, str(REPORT_DIR / "plots/logistic/jaggedness_hero.png"))
+    plot_banner_heatmap(beta, result["r_squared"], str(REPORT_DIR / "plots/logistic/banner_heatmap.png"))
+    plot_banner_jaggedness(long, beta, str(REPORT_DIR / "plots/logistic/banner_jaggedness.png"))
+    plot_doubling_time(beta, str(REPORT_DIR / "plots/logistic/doubling_time_vs_reliability.png"), args.percents)
+    plot_r_squared(long, str(REPORT_DIR / "plots/logistic/r_squared_vs_reliability.png"), args.percents)
 
 
 if __name__ == "__main__":
