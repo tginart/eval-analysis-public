@@ -230,8 +230,17 @@ def plot_hero(
         # Solid portion (fit range)
         log_h_s = beta[0] + beta[1] * date_nums_solid + beta[2] * lp + beta[3] * date_nums_solid * lp
         dt = doubling_time_at_p(beta, p)
+        # Current best for this threshold
+        sub = long[long["percent"] == p]
+        best_min = sub["horizon_min"].max() if len(sub) > 0 else 0
+        if best_min >= 60:
+            best_str = f"{best_min/60:.0f}h"
+        elif best_min >= 1:
+            best_str = f"{best_min:.0f}m"
+        else:
+            best_str = f"{best_min*60:.0f}s"
         ax.plot(date_range_solid, np.exp(log_h_s), color=color, linewidth=2.5, zorder=3,
-                label=f"{p}% success rate (doubling time: {dt:.0f} days)")
+                label=f"{p}% (doubling time: {dt:.0f}d, best today: {best_str})")
         # Dashed portion (projection)
         log_h_d = beta[0] + beta[1] * date_nums_dashed + beta[2] * lp + beta[3] * date_nums_dashed * lp
         ax.plot(date_range_dashed, np.exp(log_h_d), color=color, linewidth=2.5, zorder=3,
@@ -290,7 +299,7 @@ def plot_hero(
 
     ax.grid(True, alpha=0.2, which="major")
     ax.grid(True, alpha=0.08, which="minor")
-    ax.legend(loc="upper left", fontsize=10, framealpha=0.9, edgecolor="none")
+    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.9, edgecolor="none")
 
     plt.tight_layout()
 
@@ -374,6 +383,147 @@ def plot_jaggedness_hero(
     pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     print(f"Saved jaggedness hero to {output_path}")
+
+
+def plot_banner_heatmap(
+    beta: np.ndarray,
+    r_squared: float,
+    output_path: str,
+    ref_date: str = "2026-02-05",
+):
+    """5:2 banner version of the calculator heatmap."""
+    ref_date_num = mdates.date2num(pd.Timestamp(ref_date))
+
+    reliabilities = [50, 70, 80, 90, 95, 98, 99, 99.9]
+    horizons_min = [5, 30, 60, 240, 480, 960, 4800, 20160]
+    horizon_labels = [format_horizon(h) for h in horizons_min]
+
+    grid = np.zeros((len(horizons_min), len(reliabilities)))
+    for i, h in enumerate(horizons_min):
+        for j, p in enumerate(reliabilities):
+            grid[i, j] = days_until(beta, p, h, ref_date_num)
+
+    fig, ax = plt.subplots(figsize=(22, 8))
+    display_grid = np.clip(grid.copy(), 0, None)
+
+    im = ax.imshow(display_grid, cmap="RdYlGn_r", aspect="auto", vmin=0, vmax=3000)
+
+    for i in range(len(horizons_min)):
+        for j in range(len(reliabilities)):
+            val = grid[i, j]
+            if val <= 0:
+                text = "TODAY"
+                color = "white"
+                weight = "bold"
+            else:
+                target_date = mdates.num2date(ref_date_num + val)
+                text = f"{format_days(val)}\n{target_date.strftime('%b %Y')}"
+                color = "white" if val > 1500 else "black"
+                weight = "normal"
+            ax.text(j, i, text, ha="center", va="center", fontsize=11,
+                    color=color, fontweight=weight)
+
+    X, Y = np.meshgrid(range(len(reliabilities)), range(len(horizons_min)))
+    isocline_years = [0, 1, 2, 3, 5]
+    isocline_days = [y * 365 for y in isocline_years]
+    isocline_labels = ["Now", "+1 year", "+2 years", "+3 years", "+5 years"]
+    contours = ax.contour(X, Y, display_grid, levels=isocline_days,
+                          colors="black", linewidths=2.5, linestyles="solid", alpha=0.8)
+    ax.clabel(contours, fmt={d: l for d, l in zip(isocline_days, isocline_labels)},
+              fontsize=11, inline=True, inline_spacing=12, use_clabeltext=True)
+    for txt in ax.texts:
+        if txt.get_text() in isocline_labels:
+            txt.set_fontweight("bold")
+            txt.set_bbox(dict(boxstyle="round,pad=0.2", facecolor="white",
+                              edgecolor="black", alpha=0.85, linewidth=0.5))
+
+    ax.set_xticks(range(len(reliabilities)))
+    ax.set_xticklabels([f"{p}%" for p in reliabilities], fontsize=13)
+    ax.set_yticks(range(len(horizons_min)))
+    ax.set_yticklabels(horizon_labels, fontsize=13)
+    ax.set_xlabel("Target reliability (success rate) →", fontsize=14)
+    ax.set_ylabel("Target time horizon", fontsize=14)
+    ax.set_title(
+        "When Will AI Agents Reach Each Capability Target?",
+        fontsize=18, fontweight="bold", pad=10,
+    )
+
+    cbar = fig.colorbar(im, ax=ax, shrink=0.8, pad=0.02)
+    cbar.set_label("Days from now", fontsize=12)
+    plt.tight_layout()
+
+    pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    print(f"Saved banner heatmap to {output_path}")
+
+
+def plot_banner_jaggedness(
+    long: pd.DataFrame,
+    beta: np.ndarray,
+    output_path: str,
+):
+    """5:2 banner version of the jaggedness gap."""
+    fig, ax = plt.subplots(figsize=(20, 8))
+
+    last_data_date = long["release_date"].max()
+
+    for dates, ls, alpha in [
+        (pd.date_range("2023-06-01", last_data_date, freq="MS"), "solid", 1.0),
+        (pd.date_range(last_data_date, "2031-03-01", freq="MS"), "dashed", 0.6),
+    ]:
+        dns = mdates.date2num(dates)
+        for p, color, label in [(80, "#4DAC26", "80% success rate"), (98, "#9E1A8A", "98% success rate")]:
+            lp = logit(p / 100.0)
+            log_h = beta[0] + beta[1] * dns + beta[2] * lp + beta[3] * dns * lp
+            h_days = np.exp(log_h) / 1440.0
+            lbl = label if ls == "solid" else None
+            ax.plot(dates, h_days, color=color, linewidth=3, linestyle=ls, alpha=alpha, label=lbl)
+
+    for p, color in [(80, "#4DAC26"), (98, "#9E1A8A")]:
+        sub = long[long["percent"] == p]
+        ax.scatter(sub["release_date"], sub["horizon_min"] / 1440.0,
+                   color=color, s=25, alpha=0.5, zorder=5, edgecolors="none")
+
+    all_dates = pd.date_range("2023-06-01", "2031-03-01", freq="MS")
+    all_dns = mdates.date2num(all_dates)
+    lp80 = logit(80 / 100.0)
+    lp98 = logit(98 / 100.0)
+    h80 = np.exp(beta[0] + beta[1] * all_dns + beta[2] * lp80 + beta[3] * all_dns * lp80) / 1440.0
+    h98 = np.exp(beta[0] + beta[1] * all_dns + beta[2] * lp98 + beta[3] * all_dns * lp98) / 1440.0
+    ax.fill_between(all_dates, h98, h80, alpha=0.08, color="red", label="Jaggedness gap")
+
+    ax.axvline(last_data_date, color="black", linestyle=":", alpha=0.4, linewidth=1)
+    ax.text(last_data_date, 5, "  Today", fontsize=12, color="black", alpha=0.6, va="bottom")
+
+    for date_str in ["2026-02-01", "2028-01-01", "2031-01-01"]:
+        d = mdates.date2num(pd.Timestamp(date_str))
+        v80 = np.exp(beta[0] + beta[1] * d + beta[2] * lp80 + beta[3] * d * lp80) / 1440.0
+        v98 = np.exp(beta[0] + beta[1] * d + beta[2] * lp98 + beta[3] * d * lp98) / 1440.0
+        ratio = v80 / v98
+        mid = np.sqrt(v80 * v98)
+        ax.annotate(f"{ratio:.0f}x gap",
+                    (pd.Timestamp(date_str), mid),
+                    fontsize=14, fontweight="bold", color="red", alpha=0.7,
+                    ha="center",
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.8))
+
+    ax.set_ylabel("Time horizon (days)", fontsize=14)
+    ax.set_xlabel("Model release date", fontsize=14)
+    ax.set_title(
+        "The Jaggedness Gap: What Models Can Sometimes Do vs. What They Can Reliably Do",
+        fontsize=18, fontweight="bold", pad=10,
+    )
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.xaxis.set_major_locator(mdates.YearLocator())
+    ax.set_xlim(pd.Timestamp("2023-06-01"), pd.Timestamp("2031-03-01"))
+    ax.set_ylim(0, 200)
+    ax.legend(fontsize=13, loc="upper left")
+    ax.grid(True, alpha=0.2)
+    plt.tight_layout()
+
+    pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    print(f"Saved banner jaggedness to {output_path}")
 
 
 def plot_doubling_time(
@@ -758,6 +908,8 @@ def main():
     plot_jaggedness(beta, result["r_squared"], args.jaggedness_output, long, args.percents)
     plot_hero(long, beta, result["r_squared"], args.hero_output, args.percents)
     plot_jaggedness_hero(long, beta, "plots/logistic/jaggedness_hero.png")
+    plot_banner_heatmap(beta, result["r_squared"], "plots/logistic/banner_heatmap.png")
+    plot_banner_jaggedness(long, beta, "plots/logistic/banner_jaggedness.png")
     plot_doubling_time(beta, "plots/logistic/doubling_time_vs_reliability.png", args.percents)
     plot_r_squared(long, "plots/logistic/r_squared_vs_reliability.png", args.percents)
 
