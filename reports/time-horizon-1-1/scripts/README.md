@@ -62,6 +62,25 @@ Options:
 - `--percents`: reliability thresholds to fit (default: `50 80 90 95 98 99`)
 - `--ref-date`: reference date for calculator projections (default: `2026-02-05`)
 
+## Signal-to-noise ratio across reliability levels
+
+An important consideration: the exponential fit quality degrades at higher reliability thresholds.
+
+| Reliability | R² |
+|------------|-----|
+| 50% | 0.94 |
+| 80% | 0.91 |
+| 90% | 0.87 |
+| 95% | 0.83 |
+| 98% | 0.77 |
+| 99% | 0.71 |
+
+At 50%, the exponential fit explains 94% of the variance — a strong fit. By 99%, that drops to 71%. That's still a real, meaningful trend, but there's substantially more scatter. This makes intuitive sense: at 50% we're measuring near the inflection point of each model's success curve, where the signal is cleanest. At 99% we're in the tails, where noise dominates.
+
+This means projections at 50-90% should be taken more seriously than those at 99%+. Extrapolations to 99.9% or 99.99% are directionally informative but carry wide implicit error bars. As we get more reliable models and larger task pools, we should be able to get cleaner fits for higher reliabilities.
+
+See `r_squared_vs_reliability.png` for the visualization.
+
 ## Caveats
 
 - Projections assume continued exponential progress — no saturation or acceleration
